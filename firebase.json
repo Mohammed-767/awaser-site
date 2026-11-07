@@ -1,0 +1,8 @@
+{
+    "hosting": {
+        "target": "awaser",
+        "public": "public",
+        "ignore": [ "firebase.json", "**/.*", "**/node_modules/**" ]
+    },
+    "functions": { "source": "functions" }
+}

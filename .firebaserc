@@ -1,0 +1,15 @@
+{
+  "projects": {
+    "default": "awaser-489e6"
+  },
+  "targets": {
+    "awaser-489e6": {
+      "hosting": {
+        "awaser": [
+          "awaser"
+        ]
+      }
+    }
+  },
+  "etags": {}
+}
