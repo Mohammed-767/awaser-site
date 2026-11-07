@@ -1,0 +1,24 @@
+# Deploys public/ to https://awaser.web.app on every push to main.
+# The deploy key lives in the "production" environment, which only main can use,
+# so workflows on other branches or pull requests cannot read it.
+
+name: Deploy to Firebase Hosting on merge
+on:
+  push:
+    branches:
+      - main
+permissions:
+  contents: read
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: FirebaseExtended/action-hosting-deploy@v0
+        with:
+          repoToken: ${{ secrets.GITHUB_TOKEN }}
+          firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_AWASER_489E6 }}
+          channelId: live
+          projectId: awaser-489e6
+          target: awaser
