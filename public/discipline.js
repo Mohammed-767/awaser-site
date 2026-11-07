@@ -138,6 +138,25 @@ function toast(t,undo){
 }
 async function act(fn,ok,fail){try{await fn();if(ok)toast(ok);return true}catch(e){console.error(e);toast(e&&e.code==="permission-denied"?"ما عندك صلاحية تعديل الانضباط":(fail||"ما انحفظ. تأكد من الاتصال وجرّب مرة ثانية"));return false}}
 
+/* ---------- member notification after a new outing ----------
+   The site asks the reminders workflow (GitHub Actions, run with mode=ranking) to push
+   "the ranking changed" to subscribed members. The GitHub token stays on this device. */
+const GH={r:"awaser-dsc-gh-repo",t:"awaser-dsc-gh-tok"};
+const ghGet=k=>{try{return localStorage.getItem(k)||""}catch(e){return""}};
+async function notify(date){
+  const repo=ghGet(GH.r),tok=ghGet(GH.t);
+  if(!repo||!tok)return"off";
+  if(TEST)return"test";
+  try{
+    const res=await fetch("https://api.github.com/repos/"+repo+"/actions/workflows/reminders.yml/dispatches",{method:"POST",
+      headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+tok,"X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json"},
+      body:JSON.stringify({ref:"main",inputs:{mode:"ranking",date:date||""}})});
+    return res.status===204?"sent":"err"+res.status;
+  }catch(e){return"errnet"}
+}
+const NOTE={sent:"انرسل تنبيه للأعضاء إن الترتيب تحدّث.",test:"نسخة تجريبية: ما انرسل تنبيه.",off:"",errnet:"ما انرسل التنبيه: تعذر الاتصال بـ GitHub.",err401:"ما انرسل التنبيه: المفتاح غير صالح أو منتهي.",err403:"ما انرسل التنبيه: المفتاح ما له صلاحية Actions.",err404:"ما انرسل التنبيه: اسم المستودع غلط أو المفتاح ما يوصل له.",err422:"ما انرسل التنبيه: ملف التذكيرات ما يدعم تنبيه الترتيب للحين."};
+const noteOf=s=>s in NOTE?NOTE[s]:"ما انرسل التنبيه ("+s.replace("err","")+").";
+
 /* ---------- views ---------- */
 function rowHtml(r,isCur){
   const w=Math.max(0,Math.min(100,r.bal)),cls=r.bal<33?"low":r.bal<66?"mid":"";
@@ -273,6 +292,7 @@ function vRec(){
   if(saved)return`<div class="card d-success" role="status"><h3>${saved.edit?"انحفظ التعديل":"انحفظت الطلعة"}</h3>
       <p>${fmtDate(saved.date)} · ${saved.abs} غياب · مجموع الخصم ${saved.ded}</p>
       <p class="muted">الترتيب على الموقع تحدّث للزوار. الخطوة الجاية عادةً: أرسل الترتيب الجديد للقروب.</p>
+      ${saved.note?`<p class="d-note-line">${esc(saved.note)}</p>`:""}
       <div class="d-row"><button type="button" class="btn p" data-act="copy">نسخ الترتيب للقروب</button><button type="button" class="btn" data-act="nextoute">طلعة جديدة</button><button type="button" class="btn" data-edit="${saved.id}">تعديلها</button></div>
       <textarea id="d-copybox" hidden readonly></textarea></div>`;
   let h=`<div class="card"><div class="card-head"><h3>${draft.id?"تعديل طلعة":"طلعة جديدة"}</h3><label class="d-inline">التاريخ <input type="date" id="d-odate" value="${draft.date}"></label></div>`;
@@ -314,7 +334,14 @@ function vMem(){
   else{h+='<div class="d-list">';
     for(const m of ms)h+=`<div class="d-item"><input type="text" data-rename="${m.id}" value="${esc(m.name)}" aria-label="اسم العضو" class="d-grow">${permIds.has(m.id)?'<span class="chip warn">عذر دائم</span>':""}${renamed===m.id?'<span class="d-saved">محفوظ ✓</span>':""}<button type="button" class="btn d-sm d-danger" data-delm="${m.id}">حذف</button></div>`;
     h+="</div>"}
-  return h+"</div>";
+  h+="</div>";
+  const repo=ghGet(GH.r),hasTok=!!ghGet(GH.t);
+  h+=`<div class="card"><h3>تنبيه الأعضاء بعد كل طلعة</h3><p class="muted">بعد ما تحفظ طلعة جديدة، يوصل الأعضاء المفعّلين للتنبيهات إشعار إن الترتيب تحدّث. المفتاح ينحفظ في هذا الجهاز بس، ولا يظهر لأحد.</p>
+    <label class="d-lbl" for="d-gh-r">مستودع التذكيرات</label><input id="d-gh-r" dir="ltr" autocomplete="off" placeholder="owner/repo" value="${esc(repo)}">
+    <label class="d-lbl" for="d-gh-t">مفتاح GitHub</label><input id="d-gh-t" type="password" dir="ltr" autocomplete="off" placeholder="${hasTok?"محفوظ. اكتب مفتاح جديد لو تبي تغيّره":"github_pat_..."}">
+    <div class="d-row"><button type="button" class="btn p" data-act="ghsave">حفظ</button><button type="button" class="btn" data-act="ghtest" ${repo&&hasTok?"":"disabled"}>أرسل تنبيه تجربة</button><button type="button" class="btn d-danger" data-act="ghclear" ${repo||hasTok?"":"disabled"}>مسح</button></div>
+    <p class="muted" style="margin:8px 0 0">${repo&&hasTok?"التنبيه مفعّل على هذا الجهاز.":"التنبيه غير مفعّل على هذا الجهاز."}</p></div>`;
+  return h;
 }
 function vRules(){
   const R=[["الغياب عن الطلعة دون عذر",-25],["الغياب عن الطلعة بعذر",-15],["غائب بعذر دائم (بدون خصم)",0],["التأخر عن الحضور بعد صلاة المغرب",-5],["التأخر عن الحضور بعد العشاء",-10],["الانقطاع عن الطلعة بعد الحضور",-15],["التأخر في الضيافة",-5],["التقصير في متطلبات البرنامج الإثرائي","يُحدد"],["تقديم برنامج «إضاءة»",5]];
@@ -433,7 +460,9 @@ async function onClick(e){
       const ok=await act(()=>commit(ops),null,"ما انحفظ. تأكد من الاتصال وجرّب مرة ثانية، واللي سجّلته باقي على جهازك.");
       confirmKey=null;
       if(ok){const vals=Object.values(rec);saved={id,date,edit:wasEdit,abs:vals.filter(r=>r.st==="absent"||r.st==="excused").length,ded:Math.abs(vals.reduce((a,r)=>a+recLines(r).filter(x=>x.p<0).reduce((s2,x)=>s2+x.p,0),0))};draft=newDraft();exp.clear();clearDraft();window.scrollTo({top:0,behavior:reduceMotion()?"auto":"smooth"})}
-      render();break}
+      render();
+      if(ok&&!wasEdit&&ghGet(GH.r)&&ghGet(GH.t)){saved.note="جاري إرسال التنبيه للأعضاء…";render();const sid=id;notify(date).then(s=>{if(saved&&saved.id===sid){saved.note=noteOf(s);render()}})}
+      break}
     case "nextoute":saved=null;render();$("#d-odate")?.focus();break;
     case "takeremote":{const o=S.outings[draft.id];draft={id:draft.id,date:o.date,rec:clone(o.rec||{}),base:canon(o)};saveDraft();toast("عرضت لك النسخة الجديدة");render();break}
     case "undocycle":{
@@ -449,6 +478,14 @@ async function onClick(e){
       const ops=names.map(n=>["put","members/"+uid("m"),{name:n.slice(0,60),order:++base}]);if(!S.meta)ops.unshift(["put","meta/state",clone(meta())]);
       if(await act(()=>commit(ops),`انضاف ${names.length} عضو`))$("#d-newnames").value="";
       draft=null;render();break}
+    case "ghsave":{
+      const r=$("#d-gh-r").value.trim(),k=$("#d-gh-t").value.trim();
+      if(!/^[\w.-]+\/[\w.-]+$/.test(r)){toast("اكتب المستودع بهذا الشكل: owner/repo");break}
+      if(!k&&!ghGet(GH.t)){toast("الصق مفتاح GitHub");break}
+      try{localStorage.setItem(GH.r,r);if(k)localStorage.setItem(GH.t,k)}catch(e){toast("ما قدرت أحفظ في هذا الجهاز");break}
+      toast("انحفظ إعداد التنبيه في هذا الجهاز");render();break}
+    case "ghclear":try{localStorage.removeItem(GH.r);localStorage.removeItem(GH.t)}catch(e){}toast("انمسح إعداد التنبيه من هذا الجهاز");render();break;
+    case "ghtest":{const lab=t.textContent;t.disabled=true;t.textContent="جاري الإرسال…";const s=await notify("");toast(noteOf(s));t.disabled=false;t.textContent=lab;break}
     case "copy":copyText(report(viewCycle||meta().current),"انسخ الترتيب");break;
     case "pdf":{const lab=t.textContent;t.disabled=true;t.textContent="جاري التجهيز…";try{await savePdf()}catch(err){console.error(err);toast("ما قدرت أجهّز الملف")}finally{t.disabled=false;t.textContent=lab}break}
     case "askcycle":{const{rows}=compute(meta().current);sel={t:new Set(rows.filter(r=>r.top).map(r=>r.id)),b:new Set(rows.filter(r=>r.bottom).map(r=>r.id))};
