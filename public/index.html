@@ -35,10 +35,10 @@ main{max-width:560px;margin:0 auto;padding:20px 16px 40px}
 .logo{text-align:center;margin:4px 0 12px}.logo img{width:96px;height:96px;border-radius:22px;display:inline-block}
 h1{font-size:15px;font-weight:500;color:var(--mu);margin:0 0 18px;text-align:center}
 .hero{padding:8px 0 20px}.hero small{color:var(--mu);font-size:14px}
-.who{font-size:clamp(34px,10vw,52px);font-weight:800;line-height:1.15;margin:4px 0 8px;color:var(--act)}
+.who{font-size:clamp(34px,10vw,52px);font-weight:800;line-height:1.15;margin:4px 0 8px;color:var(--ac)}
 .when{font-size:17px}
 .row{display:flex;gap:8px;margin-top:16px;flex-wrap:wrap}
-button,select,input{font:inherit;color:inherit}
+button,select,input,textarea{font:inherit;color:inherit}
 .btn{border:1px solid var(--bd);background:var(--sf);border-radius:10px;padding:9px 14px;cursor:pointer;text-decoration:none;font-size:14px;display:inline-block}
 .btn.p{background:var(--ac);color:var(--on);border-color:var(--ac);font-weight:500}
 .btn.p:hover{filter:brightness(1.12)}
@@ -56,7 +56,7 @@ summary{cursor:pointer}
 .sheet{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:flex-end;justify-content:center;z-index:5}.sheet.on{display:flex}
 .box{background:var(--sf);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:20px 18px calc(20px + env(safe-area-inset-bottom,0px))}
 .box h2{margin:0;font-size:22px}.box p{color:var(--mu);margin:4px 0 14px}.box .row{margin-top:10px}
-select,input{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:9px 12px}
+select,input,textarea{width:100%;background:var(--bg);border:1px solid var(--bd);border-radius:10px;padding:9px 12px}
 .admin{margin-top:26px;border:1px dashed var(--bd);border-radius:12px;padding:14px;display:none}.admin.on{display:block}
 .admin label{display:block;font-size:13px;color:var(--mu);margin:10px 0 4px}
 .foot{margin-top:22px;text-align:center}
@@ -78,7 +78,7 @@ main{position:relative}
 .back:focus-visible,.logo a:focus-visible,.pick:focus-visible,.tab:focus-visible{outline:2px solid var(--ac);outline-offset:2px}
 /* Welcome */
 .hello{text-align:center;margin:0 0 22px}
-.hello b{display:block;font-size:clamp(28px,8vw,38px);font-weight:800;line-height:1.2;color:var(--act)}
+.hello b{display:block;font-size:clamp(28px,8vw,38px);font-weight:800;line-height:1.2;color:var(--ac)}
 .v-title,.d-head h2{margin:0;font-size:26px;line-height:1.2}
 .v-title{margin-bottom:6px}
 /* Touch targets: at least 44px tall */
@@ -234,6 +234,9 @@ body.d-bar-on .d-toast{bottom:calc(84px + env(safe-area-inset-bottom,0px))}
 <div class="sub" id="push-st" style="margin-top:6px"></div>
 <label>تجربة التنبيهات (عبر GitHub)</label>
 <div class="row" style="margin-top:0"><button class="btn" id="a-t1">تجربة تنبيه المشرف</button><button class="btn" id="a-t2">تجربة تنبيه الأعضاء</button></div>
+<label for="a-msg">إشعار لكل الأعضاء</label><textarea id="a-msg" rows="3" maxlength="300" placeholder="اكتب نص الإشعار هنا…" style="resize:vertical;min-height:72px"></textarea>
+<div class="sub" id="a-msg-n" style="margin-top:4px">0 من 300</div>
+<div class="row" style="margin-top:8px"><button class="btn p" id="a-bc">أرسل للجميع</button></div>
 <details style="margin-top:8px"><summary class="sub">إعداد الربط مع GitHub</summary>
 <label for="gh-r">المستودع (مثال: اسمك/awaser-reminders)</label><input id="gh-r" dir="ltr" autocomplete="off" placeholder="username/awaser-reminders">
 <label for="gh-t">مفتاح GitHub (يُحفظ على هذا الجهاز فقط)</label><input id="gh-t" type="password" dir="ltr" autocomplete="off" placeholder="github_pat_...">
@@ -406,18 +409,23 @@ $("gh-s").onclick=function(){var r=$("gh-r").value.trim(),t=$("gh-t").value.trim
  $("gh-t").value="";$("test-st").textContent="تم الحفظ على هذا الجهاز."};
 $("gh-c").onclick=function(){try{localStorage.removeItem("gh_tok");localStorage.removeItem("gh_repo")}catch(e){}
  $("gh-r").value="";$("gh-t").value="";$("test-st").textContent="تم مسح الإعداد من هذا الجهاز."};
-async function runTest(mode){var st=$("test-st"),r=ghGet("gh_repo"),t=ghGet("gh_tok");
+async function runTest(mode,extra){var st=$("test-st"),r=ghGet("gh_repo"),t=ghGet("gh_tok");
  if(!r||!t){st.textContent="أضف المستودع والمفتاح أولًا من «إعداد الربط مع GitHub».";return}
  st.textContent="جارٍ الطلب…";
  try{var res=await fetch("https://api.github.com/repos/"+r+"/actions/workflows/reminders.yml/dispatches",{method:"POST",
    headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+t,"X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json"},
-   body:JSON.stringify({ref:"main",inputs:{mode:mode}})});
-  if(res.status===204){st.textContent="تم الطلب. يصلك التنبيه خلال دقيقة تقريبًا.";return}
+   body:JSON.stringify({ref:"main",inputs:Object.assign({mode:mode},extra||{})})});
+  if(res.status===204){st.textContent="تم الطلب. يصلك التنبيه خلال دقيقة تقريبًا.";return true}
   var m={401:"المفتاح غير صالح أو منتهٍ.",403:"المفتاح لا يملك صلاحية Actions (Read and write).",404:"المستودع غير صحيح أو المفتاح لا يصل إليه.",422:"ملف الجدولة لا يدعم هذا الوضع. حدّث reminders.yml في GitHub."};
   st.textContent=m[res.status]||("تعذر الطلب ("+res.status+")")}
  catch(e){st.textContent="تعذر الاتصال بـ GitHub."}}
 $("a-t1").onclick=function(){runTest("test")};
 $("a-t2").onclick=function(){runTest("test-members")};
+$("a-msg").oninput=function(){$("a-msg-n").textContent=this.value.length+" من 300"};
+$("a-bc").onclick=async function(){var b=this,m=$("a-msg").value.replace(/\s+/g," ").trim();
+ if(!m){$("test-st").textContent="اكتب نص الإشعار أولًا.";$("a-msg").focus();return}
+ if(!confirm("سيصل هذا الإشعار لكل الأعضاء المشتركين:\n\n"+m+"\n\nإرسال؟"))return;
+ b.disabled=true;try{if(await runTest("broadcast",{message:m})){$("a-msg").value="";$("a-msg-n").textContent="0 من 300"}}finally{b.disabled=false}};
 $("a-push").onclick=async function(){var st=$("push-st");
  try{
   if(!(await isSupported())){st.textContent="هذا المتصفح لا يدعم التنبيهات. على الآيفون أضف الموقع إلى الشاشة الرئيسية ثم افتحه منها.";return}
