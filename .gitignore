@@ -8,7 +8,9 @@ functions/
 *service-account*.json
 *-firebase-adminsdk-*.json
 # Private project notes (contain admin email); keep local only
-CLAUDE.md
+CLAUDE.local.md
+firestore.rules
+firestore.rules.backup-*
 
 # Logs
 logs
@@ -79,3 +81,9 @@ node_modules/
 
 # dataconnect generated files
 .dataconnect
+awaser-reminders/
+task_plan.md
+findings.md
+progress.md
+preview/
+.claude/
